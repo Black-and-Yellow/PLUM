@@ -1,0 +1,16 @@
+# Normalize line endings to LF in the repository, use native line endings on checkout
+* text=auto eol=lf
+
+# Force binary for images/fonts
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Ensure shell scripts always use LF
+*.sh text eol=lf
