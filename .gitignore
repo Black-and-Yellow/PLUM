@@ -67,6 +67,21 @@ Thumbs.db
 dist/
 dist-ssr/
 
+# ── Legacy root-level source files (moved to frontend/) ───────────────────────
+# These files exist locally for dev convenience but belong in frontend/
+/src/
+/public/
+/question/
+/index.html
+/package.json
+/package-lock.json
+/vite.config.ts
+/tsconfig.json
+/tsconfig.app.json
+/tsconfig.node.json
+/eslint.config.js
+
 # ── Logs ──────────────────────────────────────────────────────────────────────
 logs/
 *.log
+

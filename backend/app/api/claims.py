@@ -3,6 +3,8 @@
 from __future__ import annotations
 import uuid
 import time
+import os
+import shutil
 from datetime import datetime
 from typing import Optional
 
@@ -19,8 +21,17 @@ from app.schemas.claim import (
 )
 from app.services.adjudication_engine import AdjudicationInput, adjudicate_claim
 from app.services import document_extractor, audit_service
+from app.core.config import get_settings
 
 router = APIRouter()
+
+# Allowed MIME types for document uploads
+ALLOWED_MIME_TYPES = {
+    "image/jpeg", "image/jpg", "image/png", "image/webp",
+    "application/pdf",
+}
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
 
 
 def _generate_claim_id() -> str:
@@ -276,3 +287,129 @@ async def get_stats():
     )
 
     return StatsResponse(stats=stats)
+
+
+@router.post("/claims/{claim_id}/documents")
+async def upload_claim_document(
+    claim_id: str,
+    file: UploadFile = File(...),
+    doc_type: str = Form(default="other"),
+):
+    """Upload a document for a claim and persist full metadata.
+
+    Stores:
+    - Original filename, MIME type, file size
+    - Upload timestamp and claim reference
+    - Relative download URL for preview
+    - Runs Gemini extraction if API key is configured
+
+    Returns the persisted ClaimDocument metadata.
+    """
+    db = get_database()
+    settings = get_settings()
+
+    # Validate claim exists
+    doc = await db.claims.find_one({"claim_id": claim_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    # Validate MIME type
+    content_type = file.content_type or "application/octet-stream"
+    if content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {content_type}. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}",
+        )
+
+    # Read file bytes and validate size
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE_BYTES // (1024*1024)} MB.",
+        )
+
+    # Build a safe stored filename: <doc_id>_<original>
+    doc_id = uuid.uuid4().hex[:12]
+    original_filename = file.filename or "document"
+    ext = os.path.splitext(original_filename)[1] or ""
+    stored_filename = f"{doc_id}{ext}"
+
+    # Ensure per-claim upload subdirectory exists
+    claim_upload_dir = os.path.join(settings.UPLOAD_DIR, claim_id)
+    os.makedirs(claim_upload_dir, exist_ok=True)
+
+    stored_path = os.path.join(claim_upload_dir, stored_filename)
+    with open(stored_path, "wb") as f:
+        f.write(file_bytes)
+
+    # Relative URL served by the StaticFiles mount
+    relative_filepath = f"{claim_id}/{stored_filename}"
+    download_url = f"/uploads/{relative_filepath}"
+
+    upload_date = datetime.now().isoformat()
+
+    # Attempt Gemini extraction
+    extraction_result: Optional[ExtractionResult] = None
+    extraction_status = "pending"
+    extraction_error: Optional[str] = None
+
+    if document_extractor.has_api_key():
+        try:
+            extraction_result = await document_extractor.extract_from_file(
+                file_bytes, content_type
+            )
+            extraction_status = "done"
+        except Exception as exc:
+            extraction_status = "error"
+            extraction_error = str(exc)
+    else:
+        extraction_status = "skipped"
+
+    # Build document metadata
+    claim_doc = ClaimDocument(
+        document_id=doc_id,
+        original_filename=original_filename,
+        filename=stored_filename,
+        filepath=relative_filepath,
+        mime_type=content_type,
+        doc_type=doc_type,
+        size_bytes=len(file_bytes),
+        upload_date=upload_date,
+        claim_reference=claim_id,
+        download_url=download_url,
+        extraction_result=extraction_result,
+        extraction_status=extraction_status,
+        extraction_error=extraction_error,
+    )
+
+    # Persist to MongoDB
+    await db.claims.update_one(
+        {"claim_id": claim_id},
+        {
+            "$push": {"documents": claim_doc.model_dump()},
+            "$set": {"updated_at": upload_date},
+        },
+    )
+
+    await audit_service.log_event(
+        "document_uploaded", claim_id,
+        {"doc_type": doc_type, "filename": original_filename, "size_bytes": len(file_bytes)},
+    )
+
+    return {
+        "message": "Document uploaded successfully",
+        "document": claim_doc.model_dump(),
+    }
+
+
+@router.get("/claims/{claim_id}/documents")
+async def list_claim_documents(claim_id: str):
+    """List all documents uploaded for a claim with full metadata."""
+    db = get_database()
+    doc = await db.claims.find_one({"claim_id": claim_id}, {"_id": 0, "documents": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    return {"claim_id": claim_id, "documents": doc.get("documents", [])}
+

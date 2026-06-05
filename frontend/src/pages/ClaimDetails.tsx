@@ -3,13 +3,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, XCircle, AlertTriangle, Clock,
   ChevronDown, ChevronUp, Shield, BarChart2, FileText,
-  TrendingUp, AlertCircle, MessageSquare, RefreshCw
+  TrendingUp, AlertCircle, MessageSquare, RefreshCw, Download, Eye, Paperclip
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { StatusBadge } from '../components/StatusBadge';
+import { DecisionExplanationCard } from '../components/DecisionExplanationCard';
 import * as apiService from '../services/apiService';
 import type { Claim } from '../types/claim';
 import type { RuleEvaluationResult } from '../types/decision';
+
+interface ClaimDocumentMeta {
+  document_id: string;
+  original_filename: string;
+  filename: string;
+  filepath: string;
+  mime_type: string;
+  doc_type: string;
+  size_bytes: number;
+  upload_date: string;
+  claim_reference: string;
+  download_url: string;
+  extraction_status: string;
+}
 
 function formatCurrency(n: number): string {
   return `₹${n.toLocaleString('en-IN')}`;
@@ -126,10 +141,33 @@ function AppealModal({ onClose, onSubmit }: {
   );
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocumentTypeChip({ docType }: { docType: string }) {
+  const labels: Record<string, { label: string; color: string }> = {
+    prescription: { label: 'Prescription', color: '#818cf8' },
+    bill: { label: 'Bill / Invoice', color: '#34d399' },
+    diagnostic_report: { label: 'Diagnostic Report', color: '#f59e0b' },
+    other: { label: 'Other', color: '#94a3b8' },
+  };
+  const { label, color } = labels[docType] ?? labels.other;
+  return (
+    <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full"
+      style={{ background: `${color}20`, color }}>
+      {label}
+    </span>
+  );
+}
+
 export function ClaimDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [claim, setClaim] = useState<Claim | null>(null);
+  const [documents, setDocuments] = useState<ClaimDocumentMeta[]>([]);
   const [showAppeal, setShowAppeal] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [isBackend, setIsBackend] = useState(false);
@@ -147,6 +185,16 @@ export function ClaimDetails() {
         setIsBackend(true);
         if (backendClaim.decision?.notes) {
           setReviewerComments(backendClaim.decision.notes);
+        }
+        // Load persisted documents
+        try {
+          const docsRes = await fetch(`/api/claims/${id}/documents`);
+          if (docsRes.ok) {
+            const docsData = await docsRes.json();
+            setDocuments(docsData.documents ?? []);
+          }
+        } catch {
+          // Documents are optional — ignore errors
         }
       } catch (err) {
         console.warn('Backend claim fetch failed, falling back to local storage', err);
@@ -312,6 +360,11 @@ export function ClaimDetails() {
             <ConfidenceRing value={decision.confidence} />
           </div>
         </div>
+      )}
+
+      {/* AI Decision Explanation */}
+      {decision && (
+        <DecisionExplanationCard claimId={claim.claimId} isBackend={isBackend} />
       )}
 
       {/* Manual Review Actions Panel */}
@@ -481,6 +534,75 @@ export function ClaimDetails() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Uploaded Documents */}
+      {documents.length > 0 && (
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Paperclip size={16} className="text-muted-foreground" />
+            <h3 className="font-semibold text-foreground">Uploaded Documents</h3>
+            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+              {documents.length} file{documents.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {documents.map((doc) => (
+              <div
+                key={doc.document_id}
+                className="flex items-center gap-4 p-3 rounded-lg border border-border bg-surface-muted/40 hover:bg-surface-muted/70 transition-colors"
+              >
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                  <FileText size={16} className="text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[13px] text-foreground truncate">
+                    {doc.original_filename}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <DocumentTypeChip docType={doc.doc_type} />
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatFileSize(doc.size_bytes)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {new Date(doc.upload_date).toLocaleString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                    {doc.extraction_status === 'done' && (
+                      <span className="text-[11px] text-success">✓ Extracted</span>
+                    )}
+                    {doc.extraction_status === 'error' && (
+                      <span className="text-[11px] text-destructive">⚠ Extract failed</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {doc.mime_type.startsWith('image/') && (
+                    <a
+                      href={`http://localhost:8000${doc.download_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border bg-surface hover:bg-muted transition-colors"
+                      title="Preview"
+                    >
+                      <Eye size={14} className="text-muted-foreground" />
+                    </a>
+                  )}
+                  <a
+                    href={`http://localhost:8000${doc.download_url}`}
+                    download={doc.original_filename}
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border bg-surface hover:bg-muted transition-colors"
+                    title="Download"
+                  >
+                    <Download size={14} className="text-muted-foreground" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

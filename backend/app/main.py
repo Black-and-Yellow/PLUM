@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.database.mongodb import connect_to_mongo, close_mongo_connection
-from app.api import health, claims, extraction, adjudication, policies
+from app.api import health, claims, extraction, adjudication, policies, explain
+
 
 
 @asynccontextmanager
@@ -67,3 +68,5 @@ app.include_router(claims.router, prefix="/api", tags=["Claims"])
 app.include_router(extraction.router, prefix="/api", tags=["Extraction"])
 app.include_router(adjudication.router, prefix="/api", tags=["Adjudication"])
 app.include_router(policies.router, prefix="/api", tags=["Policies"])
+app.include_router(explain.router, prefix="/api", tags=["Explainability"])
+

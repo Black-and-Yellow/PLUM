@@ -58,11 +58,21 @@ class ExtractionResult(BaseModel):
 
 
 class ClaimDocument(BaseModel):
-    """Uploaded document metadata stored in MongoDB."""
-    filename: str
-    filepath: str
-    mime_type: str
+    """Uploaded document metadata stored in MongoDB.
+
+    Persists full provenance of each uploaded file so it can be
+    retrieved, previewed, and audited after submission.
+    """
+    document_id: str  # unique ID for this document
+    original_filename: str  # original name from user's filesystem
+    filename: str  # stored filename on disk (may be renamed)
+    filepath: str  # relative path inside uploads/
+    mime_type: str  # e.g. image/jpeg, application/pdf
     doc_type: str  # prescription | bill | diagnostic_report | other
+    size_bytes: int = 0  # file size at upload time
+    upload_date: str  # ISO-8601 datetime of upload
+    claim_reference: str = ""  # claim_id this document belongs to
+    download_url: str = ""  # relative URL for preview/download
     extraction_result: Optional[ExtractionResult] = None
     extraction_status: str = "pending"  # pending | extracting | done | error
     extraction_error: Optional[str] = None
