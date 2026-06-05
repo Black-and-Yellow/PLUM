@@ -55,32 +55,105 @@ def seed():
         
         # 2. Seed default policy terms
         policy = {
-            "policy_id": "POL-OPD-2024",
-            "policy_name": "Plum Comprehensive OPD Care",
-            "limits": {
-                "per_claim_limit": 5000.0,
-                "annual_limit": 15000.0,
-                "consultation_sublimit": 1500.0,
-                "pharmacy_sublimit": 3000.0,
-                "diagnostic_sublimit": 4000.0
+            "policy_id": "PLUM_OPD_2024",
+            "policy_name": "Plum OPD Advantage",
+            "effective_date": "2024-01-01",
+            "policy_holder": {
+                "company": "TechCorp Solutions Pvt Ltd",
+                "employees_covered": 500,
+                "dependents_covered": True
             },
-            "copay": {
-                "default_percentage": 10.0,
-                "alternative_medicine_percentage": 20.0
+            "coverage_details": {
+                "annual_limit": 50000,
+                "per_claim_limit": 5000,
+                "family_floater_limit": 150000,
+                "consultation_fees": {
+                    "covered": True,
+                    "sub_limit": 2000,
+                    "copay_percentage": 10,
+                    "network_discount": 20
+                },
+                "diagnostic_tests": {
+                    "covered": True,
+                    "sub_limit": 10000,
+                    "pre_authorization_required": False,
+                    "covered_tests": [
+                        "Blood tests", "Urine tests", "X-rays", "ECG", "Ultrasound",
+                        "MRI (with pre-auth)", "CT Scan (with pre-auth)"
+                    ]
+                },
+                "pharmacy": {
+                    "covered": True,
+                    "sub_limit": 15000,
+                    "generic_drugs_mandatory": True,
+                    "branded_drugs_copay": 30
+                },
+                "dental": {
+                    "covered": True,
+                    "sub_limit": 10000,
+                    "routine_checkup_limit": 2000,
+                    "procedures_covered": ["Filling", "Extraction", "Root canal", "Cleaning"],
+                    "cosmetic_procedures": False
+                },
+                "vision": {
+                    "covered": True,
+                    "sub_limit": 5000,
+                    "eye_test_covered": True,
+                    "glasses_contact_lenses": True,
+                    "lasik_surgery": False
+                },
+                "alternative_medicine": {
+                    "covered": True,
+                    "sub_limit": 8000,
+                    "covered_treatments": ["Ayurveda", "Homeopathy", "Unani"],
+                    "therapy_sessions_limit": 20
+                }
             },
             "waiting_periods": {
-                "pre_existing_conditions_days": 90,
-                "dental_days": 30
+                "initial_waiting": 30,
+                "pre_existing_diseases": 365,
+                "maternity": 270,
+                "specific_ailments": {
+                    "diabetes": 90,
+                    "hypertension": 90,
+                    "joint_replacement": 730
+                }
             },
             "exclusions": [
-                "cosmetic", "weight loss", "bariatric", "rejuvenation", "supplements"
+                "Cosmetic procedures",
+                "Weight loss treatments",
+                "Infertility treatments",
+                "Experimental treatments",
+                "Self-inflicted injuries",
+                "Adventure sports injuries",
+                "War and nuclear risks",
+                "HIV/AIDS treatment",
+                "Alcoholism/drug abuse treatment",
+                "Non-allopathic treatments (except listed)",
+                "Vitamins and supplements (unless prescribed for deficiency)"
             ],
-            "network_providers": [
-                "Apollo Hospitals", "City Clinic", "Fortis Healthcare", "Smile Dental Care"
+            "claim_requirements": {
+                "documents_required": [
+                    "Original bills and receipts",
+                    "Prescription from registered doctor",
+                    "Diagnostic test reports (if applicable)",
+                    "Pharmacy bills with prescription",
+                    "Doctor's registration number must be visible",
+                    "Patient details must match policy records"
+                ],
+                "submission_timeline_days": 3000,
+                "minimum_claim_amount": 500
+            },
+            "network_hospitals": [
+                "Apollo Hospitals", "Fortis Healthcare", "Max Healthcare",
+                "Manipal Hospitals", "Narayana Health"
             ],
-            "pre_auth_required_amount": 10000.0,
-            "version": "1.0",
-            "is_active": True
+            "cashless_facilities": {
+                "available": True,
+                "network_only": True,
+                "pre_approval_required": False,
+                "instant_approval_limit": 5000
+            }
         }
         db.policies.insert_one(policy)
         print("[OK] Seeded default policy terms.")

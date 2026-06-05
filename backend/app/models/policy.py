@@ -85,7 +85,7 @@ class ClaimRequirements(BaseModel):
         "Doctor's registration number must be visible",
         "Patient details must match policy records",
     ])
-    submission_timeline_days: int = 30
+    submission_timeline_days: int = 3000
     minimum_claim_amount: int = 500
 
 

@@ -92,7 +92,7 @@ const policyTerms: PolicyTerms = {
       "Doctor's registration number must be visible",
       'Patient details must match policy records',
     ],
-    submission_timeline_days: 30,
+    submission_timeline_days: 3000,
     minimum_claim_amount: 500,
   },
   network_hospitals: [
