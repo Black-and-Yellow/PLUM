@@ -47,9 +47,6 @@ backend/.env
 backend/uploads/*
 !backend/uploads/.gitkeep
 
-# ── Docker ────────────────────────────────────────────────────────────────────
-.dockerignore
-
 # ── Editors & OS ─────────────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json

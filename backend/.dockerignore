@@ -1,0 +1,27 @@
+# Ignore python virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Ignore cache directories
+__pycache__/
+.pytest_cache/
+.cache/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local database storage/uploads if any
+uploads/
+*.db
+*.sqlite
+
+# Ignore git
+.git/
+.gitignore
+.gitattributes
+
+# Ignore IDE settings
+.vscode/
+.idea/
