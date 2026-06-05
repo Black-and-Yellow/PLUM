@@ -63,6 +63,7 @@ Thumbs.db
 # ── Build artifacts ───────────────────────────────────────────────────────────
 dist/
 dist-ssr/
+test_documents/
 
 # ── Legacy root-level source files (moved to frontend/) ───────────────────────
 # These files exist locally for dev convenience but belong in frontend/
