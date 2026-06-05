@@ -1,5 +1,21 @@
 services:
 
+  # ── Caddy Reverse Proxy (HTTPS & SSL Auto-Renew) ───────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: plum-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
     image: mongo:7
@@ -48,8 +64,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: plum-frontend
-    ports:
-      - "3000:80"
+    expose:
+      - "80"
     depends_on:
       backend:
         condition: service_healthy
@@ -65,3 +81,5 @@ volumes:
     driver: local
   uploads_data:
     driver: local
+  caddy_data:
+  caddy_config:

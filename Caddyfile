@@ -1,0 +1,8 @@
+plum.muthuraja.tech {
+    # Route FastAPI documentation requests directly to backend
+    reverse_proxy /docs* backend:8000
+    reverse_proxy /openapi.json* backend:8000
+
+    # Route all other frontend & proxied API traffic to the Nginx frontend container
+    reverse_proxy * frontend:80
+}
